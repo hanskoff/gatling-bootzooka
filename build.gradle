@@ -1,0 +1,55 @@
+group 'pl.jan'
+version '1.0-SNAPSHOT'
+
+buildscript {
+    repositories { jcenter() }
+    dependencies {
+        classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.2'
+    }
+}
+
+apply plugin: 'java'
+apply plugin: 'scala'
+apply plugin: 'com.github.johnrengelman.shadow'
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+repositories {
+    jcenter()
+}
+
+dependencies {
+    compile 'org.scala-lang:scala-library:2.11.7'
+    compile 'io.gatling.highcharts:gatling-charts-highcharts:2.1.7'
+    compile 'com.softwaremill.common:id-generator_2.11:1.1.0'
+    testCompile 'org.scalatest:scalatest_2.11:2.2.5'
+}
+
+task loadTest(type: JavaExec) {
+    dependsOn testClasses
+    description = "load test with Gatling"
+    group = "Load Test"
+    print("-Dserver.port=${System.properties['server.port']}")
+    classpath = sourceSets.test.runtimeClasspath
+    jvmArgs = [
+      // workaround for https://github.com/gatling/gatling/issues/2689
+      "-Dserver.port=${System.properties['server.port']}",
+      "-Dgatling.core.directory.binaries=${sourceSets.test.output.classesDir.toString()}",
+      "-Dlogback.configurationFile=${logbackGatlingConfig()}",
+    ]
+    main = "io.gatling.app.Gatling"
+    args = [
+      "--simulation", "pl.jan.BootzookaRegistrationScn",
+      "--results-folder", "${buildDir}/gatling-results",
+      "--binaries-folder", sourceSets.test.output.classesDir.toString(), // ignored because of above bug
+      "--bodies-folder", sourceSets.test.resources.srcDirs.toList().first().toString() + "/gatling/bodies",
+    ]
+}
+
+def logbackGatlingConfig() {
+    return sourceSets.test.resources.find { it.name == 'logback-gatling.xml' };
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '2.9'
+}
